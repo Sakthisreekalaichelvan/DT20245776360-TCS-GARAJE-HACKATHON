@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Insurance Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <h1>Insurance Chatbot</h1>
+        <textarea id="query" placeholder="Type or speak your insurance question..."></textarea>
+
+        <div class="language-selector">
+            <label for="language">Language:</label>
+            <select id="language">
+                <option value="en">English</option>
+                <option value="hi">हिन्दी (Hindi)</option>
+                <option value="ta">தமிழ் (Tamil)</option>
+            </select>
+        </div>
+
+        <button onclick="startDictation()" class="mic-btn">🎤 Speak</button>
+        <button onclick="sendQuery()">Ask</button>
+        <button id="downloadBtn" style="display:none;" onclick="downloadPDF()">📥 Download as PDF</button>
+
+        <div id="responseBox"></div>
+    </div>
+
+    <script>
+    function startDictation() {
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            const lang = document.getElementById('language').value;
+            recognition.lang = lang === 'ta' ? 'ta-IN' : lang === 'hi' ? 'hi-IN' : 'en-US';
+
+            recognition.start();
+
+            recognition.onresult = function(e) {
+                document.getElementById('query').value = e.results[0][0].transcript;
+                recognition.stop();
+            };
+
+            recognition.onerror = function(e) {
+                alert("Voice recognition error: " + e.error);
+                recognition.stop();
+            };
+        } else {
+            alert("Speech recognition not supported in this browser.");
+        }
+    }
+
+    function sendQuery() {
+        const query = document.getElementById('query').value;
+        const language = document.getElementById('language').value;
+
+        fetch('/ask', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `query=${encodeURIComponent(query)}&language=${language}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('responseBox').innerText = data.response;
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+        });
+    }
+
+    function downloadPDF() {
+        const responseText = document.getElementById('responseBox').innerText;
+
+        fetch('/download_pdf', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `response=${encodeURIComponent(responseText)}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            const link = document.createElement('a');
+            link.href = data.pdf_url;
+            link.download = "Insurance_Response.pdf";
+            link.click();
+        });
+    }
+    </script>
+</body>
+</html>
